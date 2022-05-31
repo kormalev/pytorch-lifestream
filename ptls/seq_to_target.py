@@ -121,6 +121,22 @@ class R_squared(DistributionTargets):
         return r_squared(self.sign * torch.exp(y_hat - 1), y[:, None])
 
 
+class RMSE(torchmetrics.Metric):
+    def __init__(self):
+        super().__init__(compute_on_step=False)
+        self.add_state('y_hat', default=[])
+        self.add_state('y', default=[])
+
+    def update(self, y_hat, y):
+        self.y_hat.append(y_hat)
+        self.y.append(y)
+
+    def compute(self):
+        y_hat = torch.cat(self.y_hat)
+        y = torch.cat(self.y)
+        return torch.sqrt(mse_loss(y_hat, y))
+
+
 class SequenceToTarget(pl.LightningModule):
     def __init__(self, params, pretrained_encoder=None):
         super().__init__()
@@ -151,6 +167,7 @@ class SequenceToTarget(pl.LightningModule):
         d_metrics = {
             'auroc': EpochAuroc(),
             'accuracy': LogAccuracy(),
+            'RMSE': RMSE(),
             'R2n': R_squared('neg_sum'),
             'MSEn': MSE('neg_sum'),
             'MAPEn': MAPE('neg_sum'),
